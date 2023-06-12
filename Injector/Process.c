@@ -53,26 +53,35 @@ BOOL UpdateModuleList(HWND hList, DWORD dwPid)
     {
         return FALSE;
     }
-
-    SendMessage(hList, LB_RESETCONTENT, NULL, NULL);
-
-    MODULEENTRY32 ModEntry;
-    ModEntry.dwSize = sizeof(MODULEENTRY32);
-    Module32First(hSnapshot, &ModEntry);
-
-    while (Module32Next(hSnapshot, &ModEntry))
+    __try
     {
-        PTSTR ptszCurLine = FormatString(__TEXT("[%p] %s"), ModEntry.modBaseAddr, ModEntry.szModule);
-        if (!ptszCurLine)
+        SendMessage(hList, LB_RESETCONTENT, NULL, NULL);
+
+        MODULEENTRY32 ModEntry;
+        ModEntry.dwSize = sizeof(MODULEENTRY32);
+        Module32First(hSnapshot, &ModEntry);
+
+        while (Module32Next(hSnapshot, &ModEntry))
         {
-            return FALSE;
+            PTSTR ptszCurLine = FormatString(__TEXT("[%p] %s"), ModEntry.modBaseAddr, ModEntry.szModule);
+            if (!ptszCurLine)
+            {
+                return FALSE;
+            }
+
+            SendMessage(hList, LB_ADDSTRING, NULL, ptszCurLine);
+
+            if (ptszCurLine)
+            {
+                free(ptszCurLine);
+            }
         }
-
-        SendMessage(hList, LB_ADDSTRING, NULL, ptszCurLine);
-
-        if (ptszCurLine)
+    }
+    __finally
+    {
+        if (hSnapshot != INVALID_HANDLE_VALUE)
         {
-            free(ptszCurLine);
+            CloseHandle(hSnapshot);
         }
     }
 

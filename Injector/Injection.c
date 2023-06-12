@@ -70,21 +70,30 @@ BOOL LoadLibraryInject(DWORD dwProcessId, PTSTR ptszDllPath, PTSTR ptszDll)
     {
         return FALSE;
     }
-
-    PVOID pTargetMem = VirtualAllocEx(hProc, NULL, 1 << 12, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-    if (!pTargetMem)
+    __try
     {
-        return FALSE;
+        PVOID pTargetMem = VirtualAllocEx(hProc, NULL, 1 << 12, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+        if (!pTargetMem)
+        {
+            return FALSE;
+        }
+
+        if (!WriteProcessMemory(hProc, pTargetMem, ptszDllPath, (_tcslen(ptszDllPath) + 1) * sizeof(TCHAR), NULL))
+        {
+            return FALSE;
+        }
+
+        if (!CreateRemoteThread(hProc, NULL, NULL, (LPTHREAD_START_ROUTINE)LoadLibrary, pTargetMem, NULL, NULL))
+        {
+            return FALSE;
+        }
     }
-
-    if (!WriteProcessMemory(hProc, pTargetMem, ptszDllPath, (_tcslen(ptszDllPath) + 1) * sizeof(TCHAR), NULL))
+    __finally
     {
-        return FALSE;
-    }
-
-    if (!CreateRemoteThread(hProc, NULL, NULL, (LPTHREAD_START_ROUTINE)LoadLibrary, pTargetMem, NULL, NULL))
-    {
-        return FALSE;
+        if (hProc)
+        {
+            CloseHandle(hProc);
+        }
     }
 
     return TRUE;

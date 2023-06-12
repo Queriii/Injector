@@ -538,6 +538,8 @@ INT_PTR ModuleDialog(HWND hDlg, UINT uiMessage, WPARAM uiParam, LPARAM lParam)
     
     case WM_INITDIALOG:
     {
+        Shared.dwProcessId      = NULL;
+        Shared.ullAddr          = NULL;
         Shared.pParentShared    = lParam;
         Shared.hList            = GetDlgItem(hDlg, IDC_MODULELIST);
 
