@@ -12,8 +12,11 @@
 #define IDC_RADIO1                      1005
 #define IDC_RADIO_LOADLIBRARY           1005
 #define IDC_MODULELIST                  1006
-#define IDC_BUTTON1                     1007
 #define IDC_MODULEUNLOAD                1007
+#define IDC_CHECK_INJECTRECENT          1008
+#define IDC_EDIT_RECENTDLL              1010
+#define IDC_EDIT_RECENTDLL2             1011
+#define IDC_EDIT_RECENTPATH             1011
 #define ID_CONFIG                       40001
 #define IDM_CONFIG                      40002
 #define ID_CONFIG_CONFIG                40003
@@ -27,7 +30,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        108
 #define _APS_NEXT_COMMAND_VALUE         40007
-#define _APS_NEXT_CONTROL_VALUE         1008
+#define _APS_NEXT_CONTROL_VALUE         1011
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

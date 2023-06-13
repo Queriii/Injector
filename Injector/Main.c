@@ -84,6 +84,10 @@ typedef struct WndMainProcInfo
     TCHAR   ptszSelectedProcess [MAX_PATH];
     TCHAR   ptszSelectedDllPath [MAX_PATH];
     TCHAR   ptszSelectedDll     [MAX_PATH];
+
+    BYTE    bSaveRecentInject;
+    PTSTR   ptszRecentPath;
+    PTSTR   ptszRecentDll;
 }WndMainProcInfo, * PWndMainProcInfo;
 BOOL                ValidateInjectionAttempt(PWndMainProcInfo pSettings);
 LRESULT CALLBACK    WndMainProc             (HWND hWindow, UINT uiMessage, WPARAM uiParam, LPARAM lParam)
@@ -116,6 +120,13 @@ LRESULT CALLBACK    WndMainProc             (HWND hWindow, UINT uiMessage, WPARA
         Shared.ptszSelectedDllPath[0]   = NULL;
         Shared.ptszSelectedProcess[0]   = NULL;
 
+        PCTSTR ptszRecentPathFormat = __TEXT("C:\\...\\DllDir");
+        PCTSTR ptszRecentDllFormat  = __TEXT("Example (NO EXTENSION)");
+        Shared.ptszRecentPath       = malloc((_tcslen(ptszRecentPathFormat) + 1) * sizeof(TCHAR));
+        Shared.ptszRecentDll        = malloc((_tcslen(ptszRecentDllFormat) + 1) * sizeof(TCHAR));
+        _tcscpy_s(Shared.ptszRecentPath, _tcslen(ptszRecentPathFormat) + 1, ptszRecentPathFormat);
+        _tcscpy_s(Shared.ptszRecentDll, _tcslen(ptszRecentDllFormat) + 1, ptszRecentDllFormat);
+
         return 0;
     }
 
@@ -137,7 +148,7 @@ LRESULT CALLBACK    WndMainProc             (HWND hWindow, UINT uiMessage, WPARA
 
         case IDM_SETTINGS_CONFIG:
         {
-            DialogBoxParam(GetWindowLongPtr(hWindow, GWLP_HINSTANCE), MAKEINTRESOURCE(IDD_CONFIG), hWindow, ConfigDialog, &(Shared.bInjectionFlag));
+            DialogBoxParam(GetWindowLongPtr(hWindow, GWLP_HINSTANCE), MAKEINTRESOURCE(IDD_CONFIG), hWindow, ConfigDialog, &Shared);
             break;
         }
 
@@ -196,6 +207,15 @@ LRESULT CALLBACK    WndMainProc             (HWND hWindow, UINT uiMessage, WPARA
 
     case WM_DESTROY:
     {
+        if (Shared.ptszRecentDll)
+        {
+            free(Shared.ptszRecentDll);
+        }
+        if (Shared.ptszRecentPath)
+        {
+            free(Shared.ptszRecentPath);
+        }
+
         PostQuitMessage(0);
         return 0;
     }
@@ -462,6 +482,11 @@ typedef struct ConfigDialogInfo
 {
     BYTE    bLocalSaveInjection;
     BYTE*   pSaveInjection;
+
+    BYTE    bLocalSaveRecentInject;
+    BYTE*   pSaveRecentInject;
+    PTSTR*  pSaveRecentPath;
+    PTSTR*  pSaveRecentDll;
 }ConfigDialogInfo;
 INT_PTR ConfigDialog(HWND hDlg, UINT uiMessage, WPARAM uiParam, LPARAM lParam)
 {
@@ -474,9 +499,20 @@ INT_PTR ConfigDialog(HWND hDlg, UINT uiMessage, WPARAM uiParam, LPARAM lParam)
     {
         CheckRadioButton(hDlg, IDC_RADIO_LOADLIBRARY, IDC_RADIO_LOADLIBRARY, IDC_RADIO_LOADLIBRARY);
         
-        Shared.bLocalSaveInjection  = LOADLIBRARY_INJECTION_ID;
-        Shared.pSaveInjection       = lParam;
-        
+        Shared.bLocalSaveInjection      = LOADLIBRARY_INJECTION_ID;
+        Shared.pSaveInjection           = &(((WndMainProcInfo*)lParam)->bInjectionFlag);
+
+        Shared.bLocalSaveRecentInject   = (((WndMainProcInfo*)lParam)->bSaveRecentInject);
+        Shared.pSaveRecentInject        = &(((WndMainProcInfo*)lParam)->bSaveRecentInject);
+        SendMessage(GetDlgItem(hDlg, IDC_CHECK_INJECTRECENT), BM_SETCHECK, (Shared.bLocalSaveRecentInject ? BST_CHECKED : BST_UNCHECKED), NULL);
+
+        Shared.pSaveRecentPath          = &(((WndMainProcInfo*)lParam)->ptszRecentPath);
+        Shared.pSaveRecentDll           = &(((WndMainProcInfo*)lParam)->ptszRecentDll);
+        SetWindowText(GetDlgItem(hDlg, IDC_EDIT_RECENTPATH), *Shared.pSaveRecentPath);
+        SetWindowText(GetDlgItem(hDlg, IDC_EDIT_RECENTDLL), *Shared.pSaveRecentDll);
+        ShowWindow(GetDlgItem(hDlg, IDC_EDIT_RECENTDLL), (Shared.bLocalSaveRecentInject) ? SW_NORMAL : SW_HIDE);
+        ShowWindow(GetDlgItem(hDlg, IDC_EDIT_RECENTPATH), (Shared.bLocalSaveRecentInject) ? SW_NORMAL : SW_HIDE);
+
         return TRUE;
     }
 
@@ -498,14 +534,47 @@ INT_PTR ConfigDialog(HWND hDlg, UINT uiMessage, WPARAM uiParam, LPARAM lParam)
         {
             if (HIWORD(uiParam) == BN_CLICKED)
             {
-                *(Shared.pSaveInjection) = Shared.bLocalSaveInjection;
+                *(Shared.pSaveInjection)    = Shared.bLocalSaveInjection;
+
+                *(Shared.pSaveRecentInject) = Shared.bLocalSaveRecentInject;
+
+
+                int iRecentPathLength   = GetWindowTextLength(GetDlgItem(hDlg, IDC_EDIT_RECENTPATH)) + 1;
+                int iRecentDllLength    = GetWindowTextLength(GetDlgItem(hDlg, IDC_EDIT_RECENTDLL)) + 1;
+                PTSTR ptszTempPath      = malloc(iRecentPathLength * sizeof(TCHAR));
+                PTSTR ptszTempDll       = malloc(iRecentDllLength * sizeof(TCHAR));
+                GetWindowText(GetDlgItem(hDlg, IDC_EDIT_RECENTPATH), ptszTempPath, iRecentPathLength);
+                GetWindowText(GetDlgItem(hDlg, IDC_EDIT_RECENTDLL), ptszTempDll, iRecentDllLength);
+
+                if (Shared.pSaveRecentDll)
+                {
+                    free(*Shared.pSaveRecentDll);
+                }
+                *Shared.pSaveRecentDll = ptszTempDll;
+
+                if (Shared.pSaveRecentPath)
+                {
+                    free(*Shared.pSaveRecentPath);
+                }
+                *Shared.pSaveRecentPath = ptszTempPath;
 
                 EndDialog(hDlg, 0);
                 return TRUE;
             }
         }
 
+        case IDC_CHECK_INJECTRECENT:
+        {
+            Shared.bLocalSaveRecentInject = SendMessage(GetDlgItem(hDlg, IDC_CHECK_INJECTRECENT), BM_GETCHECK, NULL, NULL);
+            ShowWindow(GetDlgItem(hDlg, IDC_EDIT_RECENTDLL), (Shared.bLocalSaveRecentInject) ? SW_NORMAL : SW_HIDE);
+            ShowWindow(GetDlgItem(hDlg, IDC_EDIT_RECENTPATH), (Shared.bLocalSaveRecentInject) ? SW_NORMAL : SW_HIDE);
+            
+            return TRUE;
         }
+
+        }
+
+        return TRUE;
     }
 
     
